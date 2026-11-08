@@ -1,3 +1,4 @@
+
 name: Build NEON ARENA APK
 
 on:
@@ -17,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -28,19 +29,55 @@ jobs:
           gradle-version: '8.9'
 
       - name: Extract Android Project
+        shell: bash
         run: |
-          unzip -q NEON_ARENA_Android_Project.zip -d source
-          PROJECT_DIR=$(dirname "$(find source -name settings.gradle -print -quit)")
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          set -euo pipefail
+
+          ZIP_FILE="NEON_ARENA_REDESIGNED_3_2.zip"
+
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "ERROR: Project ZIP not found: $ZIP_FILE"
+            exit 1
+          fi
+
+          mkdir -p source
+          unzip -q "$ZIP_FILE" -d source
+
+          PROJECT_FILE=$(find source -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)
+
+          if [ -z "$PROJECT_FILE" ]; then
+            echo "ERROR: Gradle settings file not found!"
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$PROJECT_FILE")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
           echo "Project directory: $PROJECT_DIR"
 
       - name: Build Debug APK
         run: |
+          set -euo pipefail
           gradle -p "$PROJECT_DIR" assembleDebug
+
+      - name: Locate APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APK_FILE=$(find "$PROJECT_DIR" -type f -path "*/build/outputs/apk/debug/*.apk" -print -quit)
+
+          if [ -z "$APK_FILE" ]; then
+            echo "ERROR: APK was not generated!"
+            exit 1
+          fi
+
+          echo "APK_PATH=$APK_FILE" >> "$GITHUB_ENV"
+          echo "APK found: $APK_FILE"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: NEON-ARENA-APK
-          path: source/**/build/outputs/apk/debug/*.apk
+          name: NEON-ARENA-3.2-APK
+          path: ${{ env.APK_PATH }}
           if-no-files-found: error
