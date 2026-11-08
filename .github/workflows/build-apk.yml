@@ -1,17 +1,19 @@
 name: Build NEON ARENA APK
 
 on:
-  workflow_dispatch:
   push:
-    paths:
-      - 'NEON_ARENA_Android_Project.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
+    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -25,17 +27,20 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract Project
+      - name: Extract Android Project
         run: |
           unzip -q NEON_ARENA_Android_Project.zip -d source
-          PROJECT_DIR="$(dirname "$(find source -name settings.gradle -print -quit)")"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          PROJECT_DIR=$(dirname "$(find source -name settings.gradle -print -quit)")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "Project directory: $PROJECT_DIR"
 
-      - name: Build APK
-        run: gradle -p "$PROJECT_DIR" assembleDebug
+      - name: Build Debug APK
+        run: |
+          gradle -p "$PROJECT_DIR" assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: NEON-ARENA-APK
           path: source/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
